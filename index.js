@@ -1,16 +1,29 @@
-const { Context, Random, interpolate } = require('koishi-core')
+/**
+ * @name koishi-plugni-welcome
+ * @desc Random custom welcome/farewell messages
+ *
+ * @author 机智的小鱼君 <dragon-fish@qq.com>
+ * @license Apache-2.0
+ */
+const { Context, Random, interpolate, template } = require('koishi-core')
 const { pick } = Random
 
+template.set('plugin-welcome', {})
+
 /**
- *
- * @param {Context} koishi
+ * @param {Context} ctx
  * @param {*} pOptions
  */
-function apply(koishi, pOptions) {
-  koishi = koishi.group().select('database')
+function apply(ctx, pOptions) {
+  ctx = ctx.group().select('database')
+  pOptions = {
+    maxWelcome: 10,
+    maxFarewell: 10,
+    ...pOptions
+  }
 
   // 群成员增加
-  koishi.on('group-member-added', async (session) => {
+  ctx.on('group-member-added', async (session) => {
     if (session.userId === session.selfId) return
 
     const at = segment('at', { id: session.userId })
@@ -32,7 +45,7 @@ function apply(koishi, pOptions) {
   })
 
   // 群成员增加
-  koishi.on('group-member-deleted', async (session) => {
+  ctx.on('group-member-deleted', async (session) => {
     if (session.userId === session.selfId) return
 
     const at = session.userId
@@ -51,8 +64,8 @@ function apply(koishi, pOptions) {
     session.send(msg)
   })
 
-  // 指令：欢迎
-  koishi
+  // cmd.welcome
+  ctx
     .command('channel.welcome', '配置本频道欢迎辞', { authority: 2 })
     .option('add', '-a <msg:text> 新增欢迎辞', { authority: 2 })
     .option('remove', '-r <num:posint> 移除欢迎辞', { authority: 2 })
@@ -87,8 +100,8 @@ function apply(koishi, pOptions) {
       }
 
       if (add) {
-        if (channel.welcomeMsg.length >= 10) {
-          return '您最多只能设置 10 条欢迎辞！'
+        if (channel.welcomeMsg.length >= pOptions.maxWelcome) {
+          return `您最多只能设置 ${pOptions.maxWelcome} 条欢迎辞！`
         } else if (channel.welcomeMsg.includes(add)) {
           return '已经存在相同的欢迎辞。'
         }
@@ -117,8 +130,9 @@ function apply(koishi, pOptions) {
 
       return session.execute('channel.welcome -h')
     })
-  // 指令：告别
-  koishi
+
+  // cmd.farewell
+  ctx
     .command('channel.farewell', '配置本频道告别辞', { authority: 2 })
     .alias('channel.goodbye')
     .option('add', '-a <msg:text> 新增告别辞', { authority: 2 })
@@ -154,8 +168,8 @@ function apply(koishi, pOptions) {
       }
 
       if (add) {
-        if (channel.farewellMsg.length >= 10) {
-          return '您最多只能设置 10 条告别辞！'
+        if (channel.farewellMsg.length >= pOptions.maxFarewell) {
+          return `您最多只能设置 ${pOptions.maxFarewell} 条告别辞！`
         } else if (channel.farewellMsg.includes(add)) {
           return '已经存在相同的告别辞。'
         }

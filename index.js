@@ -7,7 +7,7 @@ const { pick } = Random
  * @param {*} pOptions
  */
 function apply(koishi, pOptions) {
-  koishi = koishi.group().database()
+  koishi = koishi.group().select('database')
 
   // 群成员增加
   koishi.on('group-member-added', async (session) => {
@@ -53,7 +53,7 @@ function apply(koishi, pOptions) {
 
   // 指令：欢迎
   koishi
-    .command('channel.welcome', '配置本频道欢迎辞')
+    .command('channel.welcome', '配置本频道欢迎辞', { authority: 2 })
     .option('add', '-a <msg:text> 新增欢迎辞', { authority: 2 })
     .option('remove', '-r <num:posint> 移除欢迎辞', { authority: 2 })
     .option('list', '-l 列出全部欢迎辞')
@@ -61,40 +61,47 @@ function apply(koishi, pOptions) {
     .channelFields(['welcomeMsg'])
     .action(async ({ session, options }) => {
       const { add, remove, list, test } = options
-      session.channel.welcomeMsg = session.channel.welcomeMsg || []
-      let welcomeMsg = session.channel.welcomeMsg
+      const { channel } = session
 
-      if (!welcomeMsg || Array.isArray(welcomeMsg) || welcomeMsg.length < 1) {
-        session.channel.welcomeMsg = welcomeMsg = []
+      if (
+        !channel.welcomeMsg ||
+        Array.isArray(channel.welcomeMsg) ||
+        channel.welcomeMsg.length < 1
+      ) {
+        channel.welcomeMsg = []
       }
+
+      console.log(session.channel.welcomeMsg)
 
       if (list) {
         return [
           '本频道目前有以下欢迎辞：',
-          welcomeMsg
+          channel.welcomeMsg
             .map((item, index) => {
               return `${index + 1}. ${item}`
             })
             .join('\n'),
-          welcomeMsg.length < 10 ? '使用“-a <欢迎辞>”添加欢迎辞' : null,
-          welcomeMsg.length > 0 ? '使用“-r <数字>”移除欢迎辞' : null
+          channel.welcomeMsg.length < 10 ? '使用“-a <欢迎辞>”添加欢迎辞' : null,
+          channel.welcomeMsg.length > 0 ? '使用“-r <数字>”移除欢迎辞' : null
         ].join('\n')
       }
 
       if (add) {
-        if (welcomeMsg.length >= 10) {
+        if (channel.welcomeMsg.length >= 10) {
           return '您最多只能设置 10 条欢迎辞！'
-        } else if (welcomeMsg.includes(add)) {
+        } else if (channel.welcomeMsg.includes(add)) {
           return '已经存在相同的欢迎辞。'
         }
-        welcomeMsg.push(add)
+        channel.welcomeMsg.push(add)
+        await channel._update()
+        console.log(session.channel.welcomeMsg)
         return '已添加新的欢迎辞。'
       }
 
       if (remove) {
-        if (welcomeMsg[remove - 1]) {
-          const msg = welcomeMsg[remove - 1]
-          welcomeMsg.splice(remove - 1, 1)
+        if (channel.welcomeMsg[remove - 1]) {
+          const msg = channel.welcomeMsg[remove - 1]
+          channel.welcomeMsg.splice(remove - 1, 1)
           return `已移除第 ${remove} 条欢迎辞：${msg}`
         }
 
@@ -102,7 +109,7 @@ function apply(koishi, pOptions) {
       }
 
       if (test) {
-        return interpolate(pick(welcomeMsg), {
+        return interpolate(pick(channel.welcomeMsg), {
           a: session.userId,
           n: session.username
         })
@@ -112,7 +119,7 @@ function apply(koishi, pOptions) {
     })
   // 指令：告别
   koishi
-    .command('channel.farewell', '配置本频道告别辞')
+    .command('channel.farewell', '配置本频道告别辞', { authority: 2 })
     .alias('channel.goodbye')
     .option('add', '-a <msg:text> 新增告别辞', { authority: 2 })
     .option('remove', '-r <num:posint> 移除告别辞', { authority: 2 })
@@ -121,44 +128,45 @@ function apply(koishi, pOptions) {
     .channelFields(['farewellMsg'])
     .action(async ({ session, options }) => {
       const { add, remove, list, test } = options
-      session.channel.farewellMsg = session.channel.farewellMsg || []
-      let farewellMsg = session.channel.farewellMsg
+      const { channel } = session
 
       if (
-        !farewellMsg ||
-        Array.isArray(farewellMsg) ||
-        farewellMsg.length < 1
+        !channel.farewellMsg ||
+        Array.isArray(channel.farewellMsg) ||
+        channel.farewellMsg.length < 1
       ) {
-        session.channel.farewellMsg = farewellMsg = []
+        channel.farewellMsg = []
       }
 
       if (list) {
         return [
           '本频道目前有以下告别辞：',
-          farewellMsg
+          channel.farewellMsg
             .map((item, index) => {
               return `${index + 1}. ${item}`
             })
             .join('\n'),
-          farewellMsg.length < 10 ? '使用“-a <告别辞>”添加告别辞' : null,
-          farewellMsg.length > 0 ? '使用“-r <数字>”移除告别辞' : null
+          channel.farewellMsg.length < 10
+            ? '使用“-a <告别辞>”添加告别辞'
+            : null,
+          channel.farewellMsg.length > 0 ? '使用“-r <数字>”移除告别辞' : null
         ].join('\n')
       }
 
       if (add) {
-        if (farewellMsg.length >= 10) {
+        if (channel.farewellMsg.length >= 10) {
           return '您最多只能设置 10 条告别辞！'
-        } else if (farewellMsg.includes(add)) {
+        } else if (channel.farewellMsg.includes(add)) {
           return '已经存在相同的告别辞。'
         }
-        farewellMsg.push(add)
+        channel.farewellMsg.push(add)
         return '已添加新的告别辞。'
       }
 
       if (remove) {
-        if (farewellMsg[remove - 1]) {
-          const msg = farewellMsg[remove - 1]
-          farewellMsg.splice(remove - 1, 1)
+        if (channel.farewellMsg[remove - 1]) {
+          const msg = channel.farewellMsg[remove - 1]
+          channel.farewellMsg.splice(remove - 1, 1)
           return `已移除第 ${remove} 条告别辞：${msg}`
         }
 
@@ -166,7 +174,7 @@ function apply(koishi, pOptions) {
       }
 
       if (test) {
-        return interpolate(pick(farewellMsg), {
+        return interpolate(pick(channel.farewellMsg), {
           a: session.userId
         })
       }

@@ -11,13 +11,16 @@ const {
   interpolate,
   template,
   segment,
+  Session,
+  Logger,
 } = require('koishi-core')
 const { pick } = Random
+const logger = new Logger('plugin-welcome')
 
 template.set('plugin-welcome', {})
 
 function normallize(str) {
-  return str.replace(/[\s,\.，。！？]/g, '')
+  return str.replace(/[\s,\.\!\?\~，。！？]/g, '')
 }
 
 /**
@@ -25,50 +28,68 @@ function normallize(str) {
  * @param {*} pOptions
  */
 function apply(ctx, pOptions) {
+  // 群成员增加
+  ctx.on('group-member-added', (session) => {
+    if (session.userId === session.selfId) return
+    sendGreeting({ session, options: { type: 'welcome' } }).then((msg) => {
+      console.log('added', session, msg)
+      session.send(msg)
+    })
+  })
+
+  // 群成员增加
+  ctx.on('group-member-deleted', (session) => {
+    if (session.userId === session.selfId) return
+    sendGreeting({ session, options: { type: 'farewell' } }).then((msg) => {
+      console.log('deleted', session, msg)
+      session.send(msg)
+    })
+  })
+
   ctx = ctx.select('channel').select('database')
+  ctx.command('greeting', '欢迎辞、告别语配置')
   pOptions = {
     maxWelcome: 10,
     maxFarewell: 10,
     ...pOptions,
   }
 
-  // 群成员增加
-  ctx.on('group-member-added', async (session) => {
-    if (session.userId === session.selfId) return
-    session.execute(`greeting.send --type welcome`)
-  })
+  const sendGreeting = async ({ session, options }) => {
+    /**
+     * @type {Session} sess
+     */
+    const sess = session
+    const { type } = options
+    if (!['welcome', 'farewell'].includes(type)) return
+    const channel = await sess.database.getChannel(
+      sess.platform,
+      sess.channelId,
+      [`${type}Msg`]
+    )
+    const { name: nickName } = await sess.database.getUser(
+      sess.platform,
+      sess.userId,
+      ['name']
+    )
+    let msgList = channel[`${type}Msg`]
+    if (!msgList || !Array.isArray(msgList) || msgList.length < 1) {
+      msgList = []
+      return
+    }
+    const params = {
+      atUser: segment.at(session.userId),
+      userName: session.username,
+      nickName,
+      userId: session.userId,
+    }
 
-  // 群成员增加
-  ctx.on('group-member-deleted', async (session) => {
-    if (session.userId === session.selfId) return
-    session.execute(`greeting.send --type farewell`)
-  })
-
-  ctx.command('greeting', '欢迎辞、告别语配置')
+    return interpolate(pick(msgList), params)?.trim() || ''
+  }
 
   ctx
     .command('greeting.send', '内部指令，请勿直接调用', { hidden: true })
     .option('type', `<type>`)
-    .userFields(['name'])
-    .channelFields(['welcomeMsg', 'farewellMsg'])
-    .action(async ({ session, options }) => {
-      if (!['welcome', 'farewell'].includes(options.type)) return
-      const channel = session.channel
-      let msgList =
-        options.type === 'welcome' ? channel.welcomeMsg : channel.farewellMsg
-      if (!msgList || !Array.isArray(msgList) || msgList.length < 1) {
-        msgList = []
-        return
-      }
-      const params = {
-        atUser: segment.at(session.userId),
-        userName: session.username,
-        nickName: session.user.name,
-        userId: session.userId,
-      }
-
-      return interpolate(pick(msgList), params) || ''
-    })
+    .action(sendGreeting)
 
   ctx
     .command('greeting.config', '内部指令，请勿直接调用', { hidden: true })

@@ -128,7 +128,7 @@ function apply(ctx, pOptions) {
               return `${index + 1}. ${item}`
             })
             .join('\n') || '(无)',
-          msgList.length < 10 ? `使用“-a <${typeName}>”添加欢迎辞` : null,
+          msgList.length < 10 ? `使用“-a <${typeName}>”添加${typeName}` : null,
           msgList.length > 0 ? `使用“-r <数字>”移除${typeName}` : null,
         ].join('\n')
       }

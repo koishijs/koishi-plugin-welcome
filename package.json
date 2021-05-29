@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-welcome",
   "version": "0.0.2",
-  "description": "「盼您到来，慢走不送」koishi 自定义随机欢迎语、告别辞",
+  "description": "「盼您到来，慢走不送」koishi 自定义随机欢迎辞、告别语",
   "main": "index.js",
   "repository": "https://github.com/koishijs/koishi-plugin-welcome.git",
   "author": "Dragon-Fish <dragon-fish@qq.com>",
